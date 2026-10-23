@@ -4,7 +4,6 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 
 <img width="392" height="584" alt="image" src="https://github.com/user-attachments/assets/be51de68-0eb3-4641-9b4d-93cc333fb3e0" />
 
-
 ## Caratteristiche
 
 - Server Node.js senza dipendenze esterne
