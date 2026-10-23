@@ -172,7 +172,7 @@ function validState(s) { return s === null || (typeof s === 'object' && !Array.i
 function validSquads(s) { return s === null || (typeof s === 'object' && !Array.isArray(s) && Object.keys(s).length <= 50); }
 
 /* ---------- static ---------- */
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 function serveStatic(req, res, pathname) {
   let rel = decodeURIComponent(pathname);
   if (rel === '/' || rel === '') rel = '/index.html';
@@ -278,6 +278,16 @@ async function api(req, res, url) {
     const h = HIST.find(x => x.mid === decodeURIComponent(hm[1]));
     if (!h) return send(res, 404, { error: 'non trovata' });
     return send(res, 200, { snap: h });
+  }
+  if (hm && m === 'DELETE') {
+    if (!isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
+    if (lockAlive() && LOCK.sid !== sess.sid) return send(res, 409, { error: 'lock', lock: lockInfo(sess) });
+    const mid = decodeURIComponent(hm[1]);
+    if (!HIST.some(x => x.mid === mid)) return send(res, 404, { error: 'non trovata' });
+    HIST = HIST.filter(x => x.mid !== mid);
+    writeJson(F_HIST, HIST);
+    console.log(new Date().toISOString(), 'delete history', mid, sess.user);
+    return send(res, 200, { ok: true, hist: histSummary() });
   }
   return send(res, 404, { error: 'not found' });
 }

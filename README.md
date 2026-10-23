@@ -10,7 +10,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 - Interfaccia web in un unico file (`public/index.html`)
 - Accesso con utente e password, con tre ruoli: `coach`, `scoutman` e `scout`
 - Un solo utente alla volta può modificare la partita, gli altri vedono in diretta in sola lettura
-- Statistiche, storico delle ultime partite ed esportazione in Excel e PDF
+- Statistiche, storico delle ultime partite (eliminabili una a una) ed esportazione in Excel e PDF
 - Distribuzione con Docker, HTTPS opzionale tramite Caddy
 
 ## Screenshot
@@ -28,6 +28,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 | `Caddyfile` | Configurazione HTTPS (profilo `https`) |
 | `users.sh` | Gestione degli utenti nel file `.env` |
 | `scout-pallavolo/.env.example` | Esempio di configurazione |
+| `public/image/logo.jpg` | Logo opzionale (vedi sotto) |
 
 ## Avvio rapido
 
@@ -60,6 +61,12 @@ docker compose --profile https up -d --build
 ```bash
 USERS='mister:password:coach' DATA_DIR=./data node server.js
 ```
+
+## Logo e crediti
+
+Il login e le schermate Partita, Statistiche e Squadra mostrano i crediti (Scouty, autore, link al repository). Durante lo scout sono nascosti per lasciare spazio ai pulsanti.
+
+Per mostrare il logo copia il file in `public/image/logo.jpg` e ricostruisci l'immagine con `docker compose up -d --build`. Se il file non c'è, la pagina funziona senza logo.
 
 ## Configurazione
 
