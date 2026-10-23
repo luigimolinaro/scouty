@@ -24,24 +24,34 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 
 ## Avvio rapido
 
-Crea il file `.env` partendo dall'esempio e imposta utenti e password:
+Serve Docker con il plugin compose.
 
 ```bash
-cp scout-pallavolo/.env.example .env
-```
-
-Avvia con Docker:
-
-```bash
+git clone git@github.com:luigimolinaro/scouty.git && cd scouty
+./users.sh add <nome> coach      # crea .env dall'esempio e aggiunge il primo utente
 docker compose up -d --build
 ```
 
-L'app è raggiungibile su `http://localhost:8080`.
+L'app è raggiungibile su `http://localhost:8080` (o `http://IP-DEL-SERVER:8080`).
 
-Per HTTPS con dominio proprio, imposta `DOMAIN`, `COOKIE_SECURE=1` e `TRUST_PROXY=1` nel `.env`, poi:
+Senza utenti configurati il server crea credenziali temporanee e le stampa nel log (`docker compose logs scout`).
+
+### HTTPS con dominio
+
+1. Punta un record DNS all'IP del server e apri le porte 80 e 443.
+2. Nel `.env` imposta `DOMAIN`, `COOKIE_SECURE=1` e `TRUST_PROXY=1`.
+3. Avvia con Caddy, che ottiene da solo il certificato Let's Encrypt:
 
 ```bash
 docker compose --profile https up -d --build
+```
+
+4. Per non esporre la porta 8080 in chiaro, togli il blocco `ports` del servizio `scout` dal `docker-compose.yml`.
+
+### Avvio senza Docker
+
+```bash
+USERS='mister:password:coach' DATA_DIR=./data node server.js
 ```
 
 ## Configurazione
@@ -57,9 +67,9 @@ Le impostazioni si definiscono con variabili d'ambiente nel file `.env`:
 | `LOCK_TTL` | Secondi senza segnale dopo cui lo scout torna libero |
 | `HISTORY_SIZE` | Numero di partite conservate nello storico |
 
-Le password possono essere cifrate con `node server.js hash '<password>'`.
+Le password possono essere scritte già cifrate (`node server.js hash '<password>'`), ma con `users.sh` è automatico.
 
-Il file `.env` contiene credenziali: non va mai committato.
+Il file `.env` contiene credenziali ed è escluso da git: non va mai committato.
 
 ## Ruoli
 
@@ -85,6 +95,25 @@ Lo script `users.sh` modifica la variabile `USERS` del `.env` senza doverla scri
 
 Se `.env` non esiste, `users.sh add` lo crea a partire da `scout-pallavolo/.env.example`: sul server basta quindi `./users.sh add <nome> coach` seguito da `docker compose up -d --build`. Prima di ogni modifica viene salvata una copia in `.env.bak`. Cambiare il ruolo o eliminare un utente invalida le sue sessioni attive. Per cifrare le password serve `node`; in alternativa usa Docker e, se manca, costruisce l'immagine alla prima esecuzione.
 
-## Dati
+## Dati e backup
 
-I dati vengono salvati nel volume Docker `scout_data` (cartella `DATA_DIR`). Includono la partita in corso, lo storico e la chiave delle sessioni.
+I dati stanno nel volume Docker `scout_data` (cartella `DATA_DIR`):
+
+- `data.json`: partita in corso e squadre salvate
+- `history.json`: le ultime partite concluse
+- `secret`: chiave delle sessioni
+
+Backup:
+
+```bash
+docker compose cp scout:/data ./backup
+```
+
+## Aggiornamento
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+I dati restano nel volume. La modifica di `.env` richiede solo `docker compose up -d`.
