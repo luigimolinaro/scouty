@@ -339,6 +339,24 @@ async function api(req, res, url) {
   if (p === '/api/match' && m === 'POST') {
     const b = await readBody(req, 4096);
     const mid = mOf(b), mt = MATCHES.get(mid);
+    if (b.a === 'reopen' && mid) { // riapre una partita dello storico: solo allenatore e solo se non ci sono partite in corso
+      if (!isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
+      const h = HIST.find(x => x.mid === mid);
+      if (!h) return send(res, 404, { error: 'non trovata' });
+      if (liveList().length) return send(res, 409, { error: 'live', live: liveList() });
+      if (heldByOther(mid, sess)) return send(res, 409, { error: 'lock', lock: lockInfo(mid, sess) });
+      const cur = MATCHES.get(mid);
+      if (cur && cur.state) { cur.state.archived = false; cur.ver++; cur.at = Date.now(); cur.by = sess.user; }
+      else {
+        const st = { phase: 'match', team: h.team, opp: h.opp, pl: h.pl, sc: h.sc, ev: h.ev, rally: h.rally || [], subs: h.subs || [], maxSet: h.maxSet || 1, set: h.set || 1, date: h.date || '', mid, archived: false, on: [], pick: [], prole: {}, cr: {}, pair: {}, rp: null, so: null, si: null, col: '' };
+        if (!validState(st)) return send(res, 400, { error: 'snapshot' });
+        MATCHES.set(mid, { ver: 1, state: st, at: Date.now(), by: sess.user });
+      }
+      grant(mid, sess);
+      HIST = HIST.filter(x => x.mid !== mid); writeJson(F_HIST, HIST); saveDb();
+      console.log(new Date().toISOString(), 'reopen match', mid, sess.user);
+      return send(res, 200, { ok: true, hist: histSummary(), live: liveList() });
+    }
     if (b.a !== 'drop' || !mid) return send(res, 400, { error: 'azione' });
     if (!mt) return send(res, 200, { ok: true, live: liveList() });
     if (heldByOther(mid, sess)) return send(res, 409, { error: 'lock', lock: lockInfo(mid, sess) });
