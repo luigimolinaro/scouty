@@ -296,7 +296,13 @@ async function api(req, res, url) {
       b.state.mid = mid;
       MATCHES.set(mid, { ver: (cur ? cur.ver : 0) + 1, state: b.state, at: Date.now(), by: sess.user });
     }
-    if (b.squads !== undefined) DB.sqv++, DB.squads = b.squads;
+    if (b.squads !== undefined) {
+      if (!isFull(sess.role) && b.squads) { // le soglie (tgt) le imposta solo l'allenatore
+        const old = DB.squads || {};
+        for (const k of Object.keys(b.squads)) { const q = b.squads[k]; if (q && typeof q === 'object') { if (old[k] && old[k].tgt) q.tgt = old[k].tgt; else delete q.tgt; } }
+      }
+      DB.sqv++, DB.squads = b.squads;
+    }
     DB.at = Date.now(); DB.by = sess.user;
     saveDb();
     const mt = mid ? MATCHES.get(mid) : null;
