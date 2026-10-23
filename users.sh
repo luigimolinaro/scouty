@@ -53,8 +53,8 @@ save() {
   local src="$ENV_FILE"
   if [ -f "$ENV_FILE" ]; then
     cp -p "$ENV_FILE" "$ENV_FILE.bak"
-  elif [ -f scout-pallavolo/.env.example ]; then
-    src="scout-pallavolo/.env.example"   # primo uso: .env non esiste, si parte dall'esempio
+  elif [ -f .env.example ]; then
+    src=".env.example"   # primo uso: .env non esiste, si parte dall'esempio
     echo "Creo $ENV_FILE a partire da $src" >&2
   else
     src=""

@@ -27,7 +27,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 | `Dockerfile`, `docker-compose.yml` | Distribuzione con Docker |
 | `Caddyfile` | Configurazione HTTPS (profilo `https`) |
 | `users.sh` | Gestione degli utenti nel file `.env` |
-| `scout-pallavolo/.env.example` | Esempio di configurazione |
+| `.env.example` | Esempio di configurazione |
 | `public/image/Scouty-Logo.jpg` | Logo opzionale (vedi sotto) |
 
 ## Avvio rapido
@@ -107,7 +107,7 @@ Lo script `users.sh` modifica la variabile `USERS` del `.env` senza doverla scri
 ./users.sh apply                # riavvia il servizio per applicare le modifiche
 ```
 
-Se `.env` non esiste, `users.sh add` lo crea a partire da `scout-pallavolo/.env.example`: sul server basta quindi `./users.sh add <nome> coach` seguito da `docker compose up -d --build`. Prima di ogni modifica viene salvata una copia in `.env.bak`. Cambiare il ruolo o eliminare un utente invalida le sue sessioni attive. Per cifrare le password serve `node`; in alternativa usa Docker e, se manca, costruisce l'immagine alla prima esecuzione.
+Se `.env` non esiste, `users.sh add` lo crea a partire da `.env.example`: sul server basta quindi `./users.sh add <nome> coach` seguito da `docker compose up -d --build`. Prima di ogni modifica viene salvata una copia in `.env.bak`. Cambiare il ruolo o eliminare un utente invalida le sue sessioni attive. Per cifrare le password serve `node`; in alternativa usa Docker e, se manca, costruisce l'immagine alla prima esecuzione.
 
 ## Dati e backup
 
