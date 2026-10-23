@@ -1,0 +1,12 @@
+# Segreti e credenziali
+.env
+.env.*
+!.env.example
+
+# Dati runtime
+data/
+*.log
+
+# Sistema e dipendenze
+.DS_Store
+node_modules/
