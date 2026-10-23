@@ -22,7 +22,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 
 ## Screenshot
 
-<img width="1146" height="1195" alt="image" src="https://github.com/user-attachments/assets/901eac7c-75c4-48b5-96ba-1d5deafc2c68" />
+<img width="993" height="1199" alt="image" src="https://github.com/user-attachments/assets/6a7895a0-b85c-4bf6-9eb9-d0537bbc1a95" />
 
 ## Struttura
 
