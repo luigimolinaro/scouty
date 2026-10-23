@@ -50,14 +50,22 @@ save() {
   line="USERS='$val'"   # apici singoli: impediscono a compose di interpretare i "$" dell'hash
   umask 077
   tmp="$(mktemp "${ENV_FILE}.XXXXXX")"
+  local src="$ENV_FILE"
   if [ -f "$ENV_FILE" ]; then
     cp -p "$ENV_FILE" "$ENV_FILE.bak"
+  elif [ -f scout-pallavolo/.env.example ]; then
+    src="scout-pallavolo/.env.example"   # primo uso: .env non esiste, si parte dall'esempio
+    echo "Creo $ENV_FILE a partire da $src" >&2
+  else
+    src=""
+  fi
+  if [ -n "$src" ]; then
     while IFS= read -r l || [ -n "$l" ]; do
       case "$l" in
         USERS=*) if [ "$found" -eq 0 ]; then printf '%s\n' "$line"; found=1; fi ;;
         *) printf '%s\n' "$l" ;;
       esac
-    done < "$ENV_FILE" > "$tmp"
+    done < "$src" > "$tmp"
   fi
   [ "$found" -eq 1 ] || printf '%s\n' "$line" >> "$tmp"
   chmod 600 "$tmp"
@@ -87,9 +95,13 @@ hash_pw() {
   if command -v node >/dev/null 2>&1; then
     printf '%s' "$1" | node -e "$js"
   elif command -v docker >/dev/null 2>&1; then
+    if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+      echo "Immagine $IMAGE non trovata: la costruisco (solo la prima volta)..." >&2
+      docker build -q -t "$IMAGE" . >/dev/null || die "build dell'immagine fallita"
+    fi
     printf '%s' "$1" | docker run --rm -i "$IMAGE" node -e "$js"
   else
-    die "serve node oppure docker (con l'immagine $IMAGE) per cifrare la password"
+    die "serve node oppure docker per cifrare la password"
   fi
 }
 
