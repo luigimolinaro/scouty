@@ -10,3 +10,6 @@ data/
 # Sistema e dipendenze
 .DS_Store
 node_modules/
+
+# Pacchetti di rilascio
+dist/
