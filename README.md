@@ -10,7 +10,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 - Interfaccia web in un unico file (`public/index.html`)
 - Accesso con utente e password, con tre ruoli: `coach`, `scoutman` e `scout`
 - Un solo utente alla volta può modificare la partita, gli altri vedono in diretta in sola lettura
-- Statistiche, storico delle ultime partite (eliminabili una a una) ed esportazione in Excel e PDF
+- Stats con grafici (efficienza, punti ed errori, positività, palleggio, andamento del punteggio, errori per tipo, ricezione per giocatrice) ingrandibili con un tocco, storico delle ultime partite (eliminabili una a una) ed esportazione in Excel e PDF (un grafico grande per pagina)
 - Distribuzione con Docker, HTTPS opzionale tramite Caddy
 
 ## Screenshot
