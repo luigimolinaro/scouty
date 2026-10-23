@@ -7,7 +7,9 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 ## Caratteristiche
 
 - Server Node.js senza dipendenze esterne
-- Interfaccia web in un unico file (`public/index.html`)
+- Interfaccia web statica in tre file (`public/index.html`, `app.css`, `app.js`), senza build
+- Aggiornamenti in tempo reale tra i telefoni (Server-Sent Events), con ripiego sul polling
+- Se cade la rete le azioni restano sul telefono e partono al ritorno; se la pagina viene chiusa nel frattempo vengono recuperate alla riapertura (copia di sicurezza nel `localStorage`)
 - Accesso con utente e password, con tre ruoli: `coach`, `scoutman` e `scout`
 - Un solo utente alla volta può modificare la partita, gli altri vedono in diretta in sola lettura
 - Più partite in corso insieme (una per squadra), con elenco nella scheda Scout; "Termina scout" lascia la partita agli altri
@@ -15,6 +17,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 - Cambi con regole FIPAV: massimo 8 per set, ogni giocatrice rientra solo al posto della sua sostituta e una coppia può fare al più un cambio e un rientro per set
 - Stats con grafici (efficienza, punti ed errori, positività, palleggio, andamento del punteggio con i cambi segnati da un cerchio, errori per tipo, ricezione per giocatrice) ingrandibili con un tocco
 - Pulsante "Edita efficienze" nella modifica squadra (solo allenatore): obiettivi di efficienza (battuta, attacco, ricezione) e soglie di side-out e break point, impostati per ogni squadra, usati in Stats, tabellone e PDF
+- Totale partite (solo allenatore): somma dello storico di una squadra, con una riga per partita e il totale per ogni giocatrice
 - Stats di una partita in corso (sola lettura, con scelta tra le partite live) o dello storico delle ultime partite (eliminabili una a una)
 - "Riprendi scout" per riaprire una partita archiviata, possibile solo se non ci sono partite in corso
 - Esportazione in Excel e PDF (due pagine A4 orizzontali: grafici piccoli, poi tabelle e tabellone)

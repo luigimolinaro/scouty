@@ -120,7 +120,15 @@ function cookieHeader(v, maxAge) {
 const F_DATA = path.join(DATA, 'data.json');
 const F_HIST = path.join(DATA, 'history.json');
 function readJson(f, def) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return def; } }
-function writeJson(f, o) { const t = f + '.tmp'; fs.writeFileSync(t, JSON.stringify(o)); fs.renameSync(t, f); }
+// SSE: i client collegati a /api/events ricevono un avviso a ogni scrittura o cambio di lock e rileggono i dati
+const SSE = new Set(), SSE_MAX = 200;
+let sseT = null;
+function notify() {
+  if (sseT || !SSE.size) return;
+  sseT = setTimeout(() => { sseT = null; for (const r of SSE) { try { r.write('data: 1\n\n'); } catch (e) { SSE.delete(r); } } }, 60);
+}
+setInterval(() => { for (const r of SSE) { try { r.write(': ping\n\n'); } catch (e) { SSE.delete(r); } } }, 25000).unref();
+function writeJson(f, o) { const t = f + '.tmp'; fs.writeFileSync(t, JSON.stringify(o)); fs.renameSync(t, f); notify(); }
 const rid = () => Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
 const isMid = s => typeof s === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(s);
 // data.json: { sqv, squads, matches: { mid: { ver, state, at, by } }, at, by }
@@ -253,9 +261,19 @@ async function api(req, res, url) {
 
   if (p === '/api/logout' && m === 'POST') {
     for (const [k, l] of LOCKS) if (l.sid === sess.sid) LOCKS.delete(k);
+    notify();
     return send(res, 200, { ok: true }, { 'Set-Cookie': cookieHeader('', 0) });
   }
   if (p === '/api/me' && m === 'GET') return send(res, 200, { user: sess.user, role: sess.role });
+
+  if (p === '/api/events' && m === 'GET') {
+    if (SSE.size >= SSE_MAX) return send(res, 503, { error: 'errore' });
+    res.writeHead(200, Object.assign({ 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' }, SEC_HEADERS));
+    res.write('retry: 3000\n\n');
+    SSE.add(res);
+    req.on('close', () => SSE.delete(res));
+    return;
+  }
 
   // stato visibile al client: elenco partite live + storico + (se richiesta) una partita
   const payload = (mid, sess2, v, sv) => {
@@ -316,7 +334,7 @@ async function api(req, res, url) {
     const mine = lockAlive(mid) && LOCKS.get(mid).sid === sess.sid;
     if (b.a === 'get') {
       if (lockAlive(mid) && !mine) return send(res, 200, { ok: false, lock: lockInfo(mid, sess) });
-      grant(mid, sess);
+      grant(mid, sess); notify();
       const o = { ok: true, lock: lockInfo(mid, sess) };
       const mt = MATCHES.get(mid);
       if (mt && typeof b.v === 'number' && b.v !== mt.ver) o.data = payload(mid, sess, -1, DB.sqv);
@@ -332,10 +350,10 @@ async function api(req, res, url) {
       LOCKS.get(mid).beat = Date.now();
       return send(res, 200, { ok: true, lock: lockInfo(mid, sess) });
     }
-    if (b.a === 'release') { if (mine) LOCKS.delete(mid); return send(res, 200, { ok: true, lock: lockInfo(mid, sess) }); }
+    if (b.a === 'release') { if (mine) { LOCKS.delete(mid); notify(); } return send(res, 200, { ok: true, lock: lockInfo(mid, sess) }); }
     if (b.a === 'take') {
       const prev = lockAlive(mid) ? LOCKS.get(mid).u : null;
-      grant(mid, sess);
+      grant(mid, sess); notify();
       console.log(new Date().toISOString(), 'take', mid, sess.user, prev ? 'da ' + prev : '');
       return send(res, 200, { ok: true, lock: lockInfo(mid, sess), data: payload(mid, sess, -1, DB.sqv) });
     }
