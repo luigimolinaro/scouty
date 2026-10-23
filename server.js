@@ -45,9 +45,12 @@ if (!SECRET) {
 function normRole(r) {
   r = String(r || '').trim().toLowerCase();
   if (['coach', 'allenatore', 'admin'].includes(r)) return 'coach';
-  if (['scout', 'scoutman'].includes(r)) return 'scout';
+  if (r === 'scoutman') return 'scoutman';
+  if (r === 'scout') return 'scout';
   return null;
 }
+// coach e scoutman hanno gli stessi permessi (per ora); scout non vede statistiche e storico
+const isFull = role => role === 'coach' || role === 'scoutman';
 function hashPw(pw) {
   if (/^scrypt\$[0-9a-f]+\$[0-9a-f]+$/.test(pw)) {
     const [, s, h] = pw.split('$');
@@ -162,7 +165,7 @@ function histSummary() {
 }
 function dataPayload(sess) {
   const o = { ver: DB.ver, state: DB.state, squads: DB.squads, lock: lockInfo(sess) };
-  if (sess.role === 'coach') o.hist = histSummary();
+  if (isFull(sess.role)) o.hist = histSummary();
   return o;
 }
 function validState(s) { return s === null || (typeof s === 'object' && !Array.isArray(s) && Array.isArray(s.pl) && s.pl.length <= 60 && Array.isArray(s.ev)); }
@@ -214,7 +217,7 @@ async function api(req, res, url) {
 
   if (p === '/api/data' && m === 'GET') {
     const v = parseInt(url.searchParams.get('v') || '-1', 10);
-    if (v === DB.ver) { const o = { ver: DB.ver, same: true, lock: lockInfo(sess) }; if (sess.role === 'coach') o.hist = histSummary(); return send(res, 200, o); }
+    if (v === DB.ver) { const o = { ver: DB.ver, same: true, lock: lockInfo(sess) }; if (isFull(sess.role)) o.hist = histSummary(); return send(res, 200, o); }
     return send(res, 200, dataPayload(sess));
   }
 
@@ -266,12 +269,12 @@ async function api(req, res, url) {
     s.mid = String(s.mid).slice(0, 40); s.at = Date.now();
     HIST = [s].concat(HIST.filter(h => h.mid !== s.mid)).slice(0, MAX_HIST);
     writeJson(F_HIST, HIST);
-    return send(res, 200, { ok: true, hist: sess.role === 'coach' ? histSummary() : [] });
+    return send(res, 200, { ok: true, hist: isFull(sess.role) ? histSummary() : [] });
   }
 
   const hm = /^\/api\/history\/([^/]+)$/.exec(p);
   if (hm && m === 'GET') {
-    if (sess.role !== 'coach') return send(res, 403, { error: 'solo allenatore' });
+    if (!isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
     const h = HIST.find(x => x.mid === decodeURIComponent(hm[1]));
     if (!h) return send(res, 404, { error: 'non trovata' });
     return send(res, 200, { snap: h });

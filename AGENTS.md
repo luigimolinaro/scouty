@@ -15,7 +15,7 @@ This file provides guidance to agents when working with code in this repository.
 - `DB.ver` is an optimistic-concurrency counter. `PUT /api/data` takes `base` and returns 409 with `conflict:true` if it is stale, or `error:'lock'` if another session holds the scout lock. The client handles both.
 - Only one session (`sid`) holds the scout lock. It expires after `LOCK_TTL`, which is at least 20 s and defaults to 90 s. Clients send `beat` every ~9 s (every third 3 s tick), `get`, `take` and `release` are the other actions, and `pagehide` sends a `release` beacon.
 - Sessions are HMAC-signed cookies named `sv`. `readSession` rejects the cookie if the user was removed or their role changed, so editing `USERS` invalidates sessions.
-- Roles are `coach` and `scout`. Only the coach receives `hist` and may read `/api/history/:mid`. `normRole` also accepts the aliases `allenatore`, `admin` and `scoutman`.
+- Roles are `coach`, `scoutman` and `scout`. `coach` and `scoutman` are equivalent for now (`isFull()` in `server.js`, `isCoach()` in `index.html`) and are the only ones receiving `hist` and reading `/api/history/:mid`. `normRole` also accepts the aliases `allenatore` and `admin` for `coach`. Keep `users.sh` `valid_role` in sync when roles change.
 - Every non-GET API call must be `application/json` (415 otherwise). Body size limits are set per route in `readBody`. Handler errors return a generic `{error:'errore'}` and details go only to the server log.
 - The CSP in `SEC_HEADERS` allows only `'self'`, inline script/style, and Google Fonts. Do not add external scripts, CDNs or analytics, because they would be blocked.
 - Static fallback is SPA-style: any unknown GET path serves `index.html`.

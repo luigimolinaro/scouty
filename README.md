@@ -6,7 +6,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 
 - Server Node.js senza dipendenze esterne
 - Interfaccia web in un unico file (`public/index.html`)
-- Accesso con utente e password, con ruoli `coach` e `scout`
+- Accesso con utente e password, con tre ruoli: `coach`, `scoutman` e `scout`
 - Un solo utente alla volta può modificare la partita, gli altri vedono in diretta in sola lettura
 - Statistiche, storico delle ultime partite ed esportazione in Excel e PDF
 - Distribuzione con Docker, HTTPS opzionale tramite Caddy
@@ -61,13 +61,22 @@ Le password possono essere cifrate con `node server.js hash '<password>'`.
 
 Il file `.env` contiene credenziali: non va mai committato.
 
+## Ruoli
+
+| Ruolo | Scout | Squadra | Statistiche, storico, export |
+|---|---|---|---|
+| `coach` | sì | sì | sì |
+| `scoutman` | sì | sì | sì (per ora uguale a `coach`) |
+| `scout` | sì | sì | no |
+
 ## Gestione utenti
 
 Lo script `users.sh` modifica la variabile `USERS` del `.env` senza doverla scrivere a mano. Le password sono chieste in modo nascosto e salvate cifrate.
 
 ```bash
 ./users.sh list                 # elenca utenti e ruoli (senza password)
-./users.sh add <nome> <ruolo>   # ruolo: coach | scout
+./users.sh roles                # elenca i ruoli disponibili e chi li ha
+./users.sh add <nome> <ruolo>   # ruolo: coach | scoutman | scout
 ./users.sh passwd <nome>        # cambia la password
 ./users.sh role <nome> <ruolo>  # cambia il ruolo
 ./users.sh remove <nome>        # elimina un utente

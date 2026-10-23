@@ -14,7 +14,8 @@ usage() {
 Uso: $0 <comando> [argomenti]
 
   list                     elenca gli utenti (le password non vengono mai mostrate)
-  add <nome> <ruolo>       aggiunge un utente (ruolo: coach | scout)
+  roles                    elenca i ruoli disponibili e gli utenti che li hanno
+  add <nome> <ruolo>       aggiunge un utente (ruolo: coach | scoutman | scout)
   passwd <nome>            cambia la password
   role <nome> <ruolo>      cambia il ruolo
   remove <nome>            elimina un utente
@@ -79,7 +80,7 @@ find_idx() {
 }
 
 valid_name() { [[ "$1" =~ ^[A-Za-z0-9._-]{1,40}$ ]] || die "nome non valido (ammessi: lettere, numeri, . _ -; max 40)"; }
-valid_role() { case "$1" in coach|scout) ;; *) die "ruolo non valido: usa coach oppure scout" ;; esac; }
+valid_role() { case "$1" in coach|scoutman|scout) ;; *) die "ruolo non valido: usa coach, scoutman oppure scout" ;; esac; }
 
 hash_pw() {
   local js="const c=require('crypto');let d='';process.stdin.on('data',x=>d+=x).on('end',()=>{const s=c.randomBytes(16);console.log('scrypt\$'+s.toString('hex')+'\$'+c.scryptSync(d,s,32).toString('hex'))})"
@@ -110,6 +111,24 @@ cmd_list() {
     pw="$(e_pw "$e")"
     if [[ "$pw" =~ ^scrypt\$[0-9a-f]+\$[0-9a-f]+$ ]]; then kind="cifrata"; else kind="IN CHIARO (usa passwd per cifrarla)"; fi
     printf '%-20s %-8s %s\n' "$(e_name "$e")" "$(e_role "$e")" "$kind"
+  done
+}
+
+cmd_roles() {
+  load
+  local r e names desc
+  printf '%-8s %-30s %s\n' RUOLO UTENTI DESCRIZIONE
+  for r in coach scoutman scout; do
+    names=""
+    for e in ${ENTRIES[@]+"${ENTRIES[@]}"}; do
+      [ "$(e_role "$e")" = "$r" ] && names="${names:+$names, }$(e_name "$e")"
+    done
+    case "$r" in
+      coach)    desc="scout, statistiche, squadra, storico, export" ;;
+      scoutman) desc="come coach (per ora): scout, statistiche, squadra, storico, export" ;;
+      scout)    desc="solo scout e squadra, niente statistiche" ;;
+    esac
+    printf '%-8s %-30s %s\n' "$r" "${names:--}" "$desc"
   done
 }
 
@@ -159,7 +178,7 @@ cmd_remove() {
   ENTRIES=("${new[@]}")
   save
   echo "Utente eliminato. Esegui '$0 apply' per applicare."
-  if ! printf '%s\n' "${ENTRIES[@]}" | grep -q ':coach$'; then echo "Attenzione: non è rimasto nessun coach."; fi
+  if ! printf '%s\n' "${ENTRIES[@]}" | grep -qE ':(coach|scoutman)$'; then echo "Attenzione: non è rimasto nessun coach o scoutman."; fi
 }
 
 cmd_apply() {
@@ -171,6 +190,7 @@ cmd_apply() {
 cmd="$1"; shift
 case "$cmd" in
   list)   cmd_list "$@" ;;
+  roles)  cmd_roles "$@" ;;
   add)    cmd_add "$@" ;;
   passwd) cmd_passwd "$@" ;;
   role)   cmd_role "$@" ;;
