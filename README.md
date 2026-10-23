@@ -73,12 +73,6 @@ Senza lo script: imposta a mano le tre variabili nel `.env` e lancia `docker com
 USERS='mister:password:coach' DATA_DIR=./data node server.js
 ```
 
-## Logo e crediti
-
-La schermata di login mostra i crediti (Scouty, autore, link al repository); nelle altre schermate sono nascosti per lasciare spazio.
-
-Il logo è il file `public/image/Scouty-Logo.jpg` (300×300 nel login, piccolo nei crediti). Per cambiarlo sostituisci quel file e ricostruisci l'immagine con `docker compose up -d --build`. Se il file non c'è, la pagina funziona senza logo.
-
 ## Configurazione
 
 Le impostazioni si definiscono con variabili d'ambiente nel file `.env`:
@@ -181,20 +175,6 @@ tar xzf scouty-backup-AAAA-MM-GG.tgz
 sudo chown -R 1000:1000 data
 docker compose up -d
 ```
-
-### Migrare dal vecchio volume Docker
-
-Se avevi già dati nel volume `scout_data` (versioni precedenti), copiali prima di avviare:
-
-```bash
-docker compose down
-mkdir -p data
-docker run --rm --user root --entrypoint cp -v scouty_scout_data:/from -v "$PWD/data":/to scout-pallavolo:latest -a /from/. /to/
-sudo chown -R 1000:1000 data
-./setup.sh
-```
-
-Il nome del volume dipende dalla cartella del progetto: controllalo con `docker volume ls | grep scout`.
 
 ## Aggiornamento
 
