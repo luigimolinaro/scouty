@@ -2,7 +2,8 @@
 
 Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout condiviso in tempo reale.
 
-<img width="392" height="584" alt="image" src="https://github.com/user-attachments/assets/be51de68-0eb3-4641-9b4d-93cc333fb3e0" />
+<img width="1254" height="1254" alt="Scouty Owl Volleyball Logo" src="https://github.com/user-attachments/assets/23423f1f-89c4-4568-8eb0-7ab69cd0a1d7" />
+
 
 ## Caratteristiche
 
