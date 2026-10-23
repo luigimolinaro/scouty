@@ -14,7 +14,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 - Colore della squadra a scelta (giallo, turchese, blu, nero), salvato con la squadra
 - Cambi con regole FIPAV: massimo 8 per set, ogni giocatrice rientra solo al posto della sua sostituta e una coppia può fare al più un cambio e un rientro per set
 - Stats con grafici (efficienza, punti ed errori, positività, palleggio, andamento del punteggio con i cambi segnati da un cerchio, errori per tipo, ricezione per giocatrice) ingrandibili con un tocco
-- Menu Soglie (solo allenatore): obiettivi di efficienza (battuta, attacco, ricezione), positività del muro e soglie di side-out e break point, impostati per ogni squadra, usati in Stats, tabellone e PDF
+- Soglie nella modifica squadra (solo allenatore): obiettivi di efficienza (battuta, attacco, ricezione), efficacia del muro e soglie di side-out e break point, impostati per ogni squadra, usati in Stats, tabellone e PDF
 - Stats di una partita in corso (sola lettura, con scelta tra le partite live) o dello storico delle ultime partite (eliminabili una a una)
 - "Riprendi scout" per riaprire una partita archiviata, possibile solo se non ci sono partite in corso
 - Esportazione in Excel e PDF (due pagine A4 orizzontali: grafici piccoli, poi tabelle e tabellone)
@@ -95,7 +95,7 @@ Il file `.env` contiene credenziali ed è escluso da git: non va mai committato.
 
 ## Ruoli
 
-| Ruolo | Scout | Squadra | Stats, soglie, storico, riprendi scout, export |
+| Ruolo | Scout | Squadra | Stats, storico, riprendi scout, export |
 |---|---|---|---|
 | `coach` | sì | sì | sì |
 | `scoutman` | sì | sì | sì (per ora uguale a `coach`) |
