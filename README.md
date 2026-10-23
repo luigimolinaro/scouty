@@ -1,6 +1,9 @@
-# Scout pallavolo
+# Scouty
 
 Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout condiviso in tempo reale.
+
+<img width="784" height="1168" alt="image" src="https://github.com/user-attachments/assets/be51de68-0eb3-4641-9b4d-93cc333fb3e0" />
+
 
 ## Caratteristiche
 
