@@ -154,7 +154,7 @@ let HV = Date.now(); // firma: cambia a ogni modifica dello storico
 const ymd = t => new Date(t).toISOString().slice(0, 10);
 const okDate = d => typeof d === 'string' && /^(20\d\d)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d);
 const histRel = s => path.join(s.date.slice(0, 4), s.date.slice(5, 7), s.mid + '.json');
-const histInfo = (h, rel) => ({ mid: h.mid, team: String(h.team || '').slice(0, 60), opp: String(h.opp || '').slice(0, 60), date: h.date, won: h.won, sets: (h.sc || []).slice(0, h.maxSet || 0), at: h.at || 0, rel });
+const histInfo = (h, rel) => ({ mid: h.mid, team: String(h.team || '').slice(0, 60), opp: String(h.opp || '').slice(0, 60), date: h.date, won: h.won, sets: (h.sc || []).slice(0, h.maxSet || 0), camp: String(h.camp || '').slice(0, 40), at: h.at || 0, rel });
 function putHist(s) {
   if (!okDate(s.date)) s.date = ymd(s.at || Date.now());
   const rel = histRel(s), old = IDX.get(s.mid);
@@ -173,7 +173,7 @@ function delHist(mid) {
 }
 const getHist = mid => { const x = IDX.get(mid); return x ? readJson(path.join(D_HIST, x.rel), null) : null; };
 const histSort = (a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0));
-const histOut = x => ({ mid: x.mid, team: x.team, opp: x.opp, date: x.date, won: x.won, sets: x.sets });
+const histOut = x => ({ mid: x.mid, team: x.team, opp: x.opp, date: x.date, won: x.won, sets: x.sets, camp: x.camp || '' });
 (function loadHist() {
   let ys = []; try { ys = fs.readdirSync(D_HIST); } catch (e) { /* ancora nessuno storico */ }
   for (const y of ys) {
