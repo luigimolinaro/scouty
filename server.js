@@ -28,6 +28,7 @@ const PUB = path.join(__dirname, 'public');
 const LOCK_TTL = Math.max(20, parseInt(process.env.LOCK_TTL || '90', 10)) * 1000;
 const SECURE = process.env.COOKIE_SECURE === '1';
 const MAX_HIST = parseInt(process.env.HISTORY_SIZE || '6', 10);
+const MAX_LIVE = Math.max(1, parseInt(process.env.MAX_LIVE || '5', 10));
 const SESSION_DAYS = parseInt(process.env.SESSION_DAYS || '30', 10);
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 
@@ -120,21 +121,63 @@ const F_DATA = path.join(DATA, 'data.json');
 const F_HIST = path.join(DATA, 'history.json');
 function readJson(f, def) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return def; } }
 function writeJson(f, o) { const t = f + '.tmp'; fs.writeFileSync(t, JSON.stringify(o)); fs.renameSync(t, f); }
-let DB = readJson(F_DATA, { ver: 0, state: null, squads: null, at: 0, by: '' });
+const rid = () => Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+const isMid = s => typeof s === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(s);
+// data.json: { sqv, squads, matches: { mid: { ver, state, at, by } }, at, by }
+let DB = readJson(F_DATA, null);
+if (!DB || typeof DB !== 'object') DB = { sqv: 0, squads: null, matches: {}, at: 0, by: '' };
+else if (!DB.matches) { // formato precedente (una sola partita): conversione, con copia di sicurezza
+  try { fs.copyFileSync(F_DATA, F_DATA + '.v1'); } catch (e) { /* nessuna copia */ }
+  const old = DB, s = old.state;
+  DB = { sqv: old.ver || 0, squads: old.squads || null, matches: {}, at: old.at || 0, by: old.by || '' };
+  if (s && Array.isArray(s.pl) && Array.isArray(s.ev) && (s.phase === 'match' || s.ev.length)) {
+    const mid = isMid(s.mid) ? s.mid : rid(); s.mid = mid;
+    DB.matches[mid] = { ver: 1, state: s, at: old.at || 0, by: old.by || '' };
+  }
+  writeJson(F_DATA, DB);
+}
+const MATCHES = new Map(Object.entries(DB.matches));
+for (const [k, m] of MATCHES) if (m && m.state && m.state.archived && Date.now() - (m.at || 0) > 7 * 864e5) MATCHES.delete(k);
+function saveDb() { writeJson(F_DATA, { sqv: DB.sqv, squads: DB.squads, matches: Object.fromEntries(MATCHES), at: DB.at, by: DB.by }); }
 let HIST = readJson(F_HIST, []);
 if (!Array.isArray(HIST)) HIST = [];
 
-/* ---------- blocco scout ---------- */
-let LOCK = null; // {sid,u,r,since,beat}
-const lockAlive = () => !!LOCK && Date.now() - LOCK.beat < LOCK_TTL;
-function lockInfo(sess) {
-  if (!lockAlive()) return null;
-  return { u: LOCK.u, r: LOCK.r, since: LOCK.since, alive: true, mine: !!sess && LOCK.sid === sess.sid };
+/* ---------- blocco scout (uno per partita) ---------- */
+const LOCKS = new Map(); // mid -> {sid,u,r,since,beat}
+const lockAlive = mid => { const l = LOCKS.get(mid); return !!l && Date.now() - l.beat < LOCK_TTL; };
+function lockInfo(mid, sess) {
+  if (!lockAlive(mid)) return null;
+  const l = LOCKS.get(mid);
+  return { u: l.u, r: l.r, since: l.since, alive: true, mine: !!sess && l.sid === sess.sid };
 }
-function grant(sess) {
-  const keep = lockAlive() && LOCK.sid === sess.sid;
-  LOCK = { sid: sess.sid, u: sess.user, r: sess.role, since: keep ? LOCK.since : Date.now(), beat: Date.now() };
+function grant(mid, sess) {
+  const l = LOCKS.get(mid), keep = lockAlive(mid) && l.sid === sess.sid;
+  for (const [k, x] of LOCKS) if (Date.now() - x.beat > LOCK_TTL * 10) LOCKS.delete(k);
+  LOCKS.set(mid, { sid: sess.sid, u: sess.user, r: sess.role, since: keep ? l.since : Date.now(), beat: Date.now() });
 }
+const heldByOther = (mid, sess) => lockAlive(mid) && LOCKS.get(mid).sid !== sess.sid;
+const normTeam = t => String(t || '').trim().toLowerCase();
+// una sola partita in corso per squadra (le partite gia' concluse non contano)
+function busyTeam(team, exceptMid) {
+  const t = normTeam(team);
+  for (const [k, m] of MATCHES) if (k !== exceptMid && m.state && !m.state.archived && normTeam(m.state.team) === t) return true;
+  return false;
+}
+function liveList() {
+  const out = [];
+  for (const [mid, m] of MATCHES) {
+    const s = m.state; if (!s || s.archived) continue;
+    const l = lockInfo(mid, null);
+    out.push({
+      mid, team: String(s.team || '').slice(0, 60), opp: String(s.opp || '').slice(0, 60), date: s.date || '',
+      set: Number(s.set) || 1,
+      sc: Array.isArray(s.sc) ? s.sc.slice(0, 5).map(a => [Number(a && a[0]) || 0, Number(a && a[1]) || 0]) : [],
+      lock: l ? { u: l.u, r: l.r } : null
+    });
+  }
+  return out;
+}
+
 
 /* ---------- helper HTTP ---------- */
 const SEC_HEADERS = {
@@ -166,11 +209,6 @@ function rateLimited(ip) {
 }
 function histSummary() {
   return HIST.map(h => ({ mid: h.mid, team: h.team, opp: h.opp, date: h.date, won: h.won, sets: (h.sc || []).slice(0, h.maxSet || 0) }));
-}
-function dataPayload(sess) {
-  const o = { ver: DB.ver, state: DB.state, squads: DB.squads, lock: lockInfo(sess) };
-  if (isFull(sess.role)) o.hist = histSummary();
-  return o;
 }
 function validState(s) { return s === null || (typeof s === 'object' && !Array.isArray(s) && Array.isArray(s.pl) && s.pl.length <= 60 && Array.isArray(s.ev)); }
 function validSquads(s) { return s === null || (typeof s === 'object' && !Array.isArray(s) && Object.keys(s).length <= 50); }
@@ -214,66 +252,114 @@ async function api(req, res, url) {
   if (!sess) return send(res, 401, { error: 'login' });
 
   if (p === '/api/logout' && m === 'POST') {
-    if (lockAlive() && LOCK.sid === sess.sid) LOCK = null;
+    for (const [k, l] of LOCKS) if (l.sid === sess.sid) LOCKS.delete(k);
     return send(res, 200, { ok: true }, { 'Set-Cookie': cookieHeader('', 0) });
   }
   if (p === '/api/me' && m === 'GET') return send(res, 200, { user: sess.user, role: sess.role });
 
+  // stato visibile al client: elenco partite live + storico + (se richiesta) una partita
+  const payload = (mid, sess2, v, sv) => {
+    const mt = mid ? MATCHES.get(mid) : null;
+    const o = { sqv: DB.sqv, live: liveList(), mid, lock: mid ? lockInfo(mid, sess2) : null, ver: mt ? mt.ver : 0 };
+    if (sv !== DB.sqv) o.squads = DB.squads;
+    if (mid && !mt) o.gone = true;
+    if (mt && v !== mt.ver) o.state = mt.state;
+    if (isFull(sess2.role)) o.hist = histSummary();
+    return o;
+  };
+  const mOf = b => { const x = (b && b.m) || url.searchParams.get('m') || ''; return isMid(x) ? x : ''; };
+
   if (p === '/api/data' && m === 'GET') {
-    const v = parseInt(url.searchParams.get('v') || '-1', 10);
-    if (v === DB.ver) { const o = { ver: DB.ver, same: true, lock: lockInfo(sess) }; if (isFull(sess.role)) o.hist = histSummary(); return send(res, 200, o); }
-    return send(res, 200, dataPayload(sess));
+    const v = parseInt(url.searchParams.get('v') || '-1', 10), sv = parseInt(url.searchParams.get('sv') || '-1', 10);
+    return send(res, 200, payload(mOf(null), sess, v, sv));
   }
 
   if (p === '/api/data' && m === 'PUT') {
     const b = await readBody(req, 4 * 1024 * 1024);
-    if (lockAlive() && LOCK.sid !== sess.sid) return send(res, 409, { error: 'lock', lock: lockInfo(sess) });
-    if (typeof b.base === 'number' && b.base !== DB.ver) { grant(sess); return send(res, 409, Object.assign({ conflict: true }, dataPayload(sess))); }
-    if (!validState(b.state) || !validSquads(b.squads)) return send(res, 400, { error: 'dati non validi' });
-    grant(sess);
-    DB = { ver: DB.ver + 1, state: b.state, squads: b.squads, at: Date.now(), by: sess.user };
-    writeJson(F_DATA, DB);
-    return send(res, 200, { ver: DB.ver, lock: lockInfo(sess) });
+    const mid = mOf(b);
+    if (b.squads !== undefined && !validSquads(b.squads)) return send(res, 400, { error: 'dati non validi' });
+    if (b.state !== undefined && b.state !== null && !validState(b.state)) return send(res, 400, { error: 'dati non validi' });
+    if (b.state) {
+      if (!mid) return send(res, 400, { error: 'partita' });
+      if (heldByOther(mid, sess)) return send(res, 409, { error: 'lock', lock: lockInfo(mid, sess) });
+      const cur = MATCHES.get(mid);
+      if (cur) {
+        if (typeof b.base === 'number' && b.base !== cur.ver) { grant(mid, sess); return send(res, 409, Object.assign({ conflict: true }, payload(mid, sess, -1, DB.sqv))); }
+      } else {
+        if (typeof b.base === 'number' && b.base !== 0) return send(res, 409, { gone: true, live: liveList() });
+        if (!b.state.archived) {
+          if (busyTeam(b.state.team, mid)) return send(res, 409, { error: 'team', live: liveList() });
+          if (liveList().length >= MAX_LIVE) return send(res, 409, { error: 'max', live: liveList() });
+        }
+      }
+      grant(mid, sess);
+      b.state.mid = mid;
+      MATCHES.set(mid, { ver: (cur ? cur.ver : 0) + 1, state: b.state, at: Date.now(), by: sess.user });
+    }
+    if (b.squads !== undefined) DB.sqv++, DB.squads = b.squads;
+    DB.at = Date.now(); DB.by = sess.user;
+    saveDb();
+    const mt = mid ? MATCHES.get(mid) : null;
+    return send(res, 200, { ver: mt ? mt.ver : 0, sqv: DB.sqv, lock: mid ? lockInfo(mid, sess) : null, live: liveList() });
   }
 
   if (p === '/api/lock' && m === 'POST') {
     const b = await readBody(req, 4096);
-    const mine = lockAlive() && LOCK.sid === sess.sid;
+    const mid = mOf(b);
+    if (!mid) return send(res, 400, { error: 'partita' });
+    const mine = lockAlive(mid) && LOCKS.get(mid).sid === sess.sid;
     if (b.a === 'get') {
-      if (lockAlive() && !mine) return send(res, 200, { ok: false, lock: lockInfo(sess) });
-      grant(sess);
-      const o = { ok: true, lock: lockInfo(sess) };
-      if (typeof b.v === 'number' && b.v !== DB.ver) o.data = dataPayload(sess);
+      if (lockAlive(mid) && !mine) return send(res, 200, { ok: false, lock: lockInfo(mid, sess) });
+      grant(mid, sess);
+      const o = { ok: true, lock: lockInfo(mid, sess) };
+      const mt = MATCHES.get(mid);
+      if (mt && typeof b.v === 'number' && b.v !== mt.ver) o.data = payload(mid, sess, -1, DB.sqv);
       return send(res, 200, o);
     }
     if (b.a === 'beat') {
       if (!mine) {
         // lock scaduto ma nessun altro lo ha preso: lo riprendiamo
-        if (!lockAlive() && LOCK && LOCK.sid === sess.sid) { grant(sess); return send(res, 200, { ok: true, lock: lockInfo(sess) }); }
-        return send(res, 200, { ok: false, lost: true, lock: lockInfo(sess) });
+        const l = LOCKS.get(mid);
+        if (!lockAlive(mid) && l && l.sid === sess.sid) { grant(mid, sess); return send(res, 200, { ok: true, lock: lockInfo(mid, sess) }); }
+        return send(res, 200, { ok: false, lost: true, lock: lockInfo(mid, sess) });
       }
-      LOCK.beat = Date.now();
-      return send(res, 200, { ok: true, lock: lockInfo(sess) });
+      LOCKS.get(mid).beat = Date.now();
+      return send(res, 200, { ok: true, lock: lockInfo(mid, sess) });
     }
-    if (b.a === 'release') { if (mine) LOCK = null; return send(res, 200, { ok: true, lock: lockInfo(sess) }); }
+    if (b.a === 'release') { if (mine) LOCKS.delete(mid); return send(res, 200, { ok: true, lock: lockInfo(mid, sess) }); }
     if (b.a === 'take') {
-      const prev = lockAlive() ? LOCK.u : null;
-      grant(sess);
-      console.log(new Date().toISOString(), 'take', sess.user, prev ? 'da ' + prev : '');
-      return send(res, 200, { ok: true, lock: lockInfo(sess), data: dataPayload(sess) });
+      const prev = lockAlive(mid) ? LOCKS.get(mid).u : null;
+      grant(mid, sess);
+      console.log(new Date().toISOString(), 'take', mid, sess.user, prev ? 'da ' + prev : '');
+      return send(res, 200, { ok: true, lock: lockInfo(mid, sess), data: payload(mid, sess, -1, DB.sqv) });
     }
     return send(res, 400, { error: 'azione' });
   }
 
+  if (p === '/api/match' && m === 'POST') {
+    const b = await readBody(req, 4096);
+    const mid = mOf(b), mt = MATCHES.get(mid);
+    if (b.a !== 'drop' || !mid) return send(res, 400, { error: 'azione' });
+    if (!mt) return send(res, 200, { ok: true, live: liveList() });
+    if (heldByOther(mid, sess)) return send(res, 409, { error: 'lock', lock: lockInfo(mid, sess) });
+    const empty = !(mt.state && Array.isArray(mt.state.ev) && mt.state.ev.length);
+    if (!empty && !isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
+    MATCHES.delete(mid); LOCKS.delete(mid); saveDb();
+    console.log(new Date().toISOString(), 'drop match', mid, sess.user);
+    return send(res, 200, { ok: true, live: liveList() });
+  }
+
   if (p === '/api/archive' && m === 'POST') {
     const b = await readBody(req, 4 * 1024 * 1024);
-    if (lockAlive() && LOCK.sid !== sess.sid) return send(res, 409, { error: 'lock', lock: lockInfo(sess) });
     const s = b.snap;
-    if (!s || typeof s !== 'object' || !s.mid || !Array.isArray(s.pl) || !Array.isArray(s.ev) || !Array.isArray(s.sc)) return send(res, 400, { error: 'snapshot' });
-    s.mid = String(s.mid).slice(0, 40); s.at = Date.now();
+    if (!s || typeof s !== 'object' || !isMid(s.mid) || !Array.isArray(s.pl) || !Array.isArray(s.ev) || !Array.isArray(s.sc)) return send(res, 400, { error: 'snapshot' });
+    if (heldByOther(s.mid, sess)) return send(res, 409, { error: 'lock', lock: lockInfo(s.mid, sess) });
+    s.at = Date.now();
     HIST = [s].concat(HIST.filter(h => h.mid !== s.mid)).slice(0, MAX_HIST);
     writeJson(F_HIST, HIST);
-    return send(res, 200, { ok: true, hist: isFull(sess.role) ? histSummary() : [] });
+    const mt = MATCHES.get(s.mid);
+    if (mt && mt.state) { mt.state.archived = true; mt.at = Date.now(); saveDb(); }
+    return send(res, 200, { ok: true, hist: isFull(sess.role) ? histSummary() : [], live: liveList() });
   }
 
   const hm = /^\/api\/history\/([^/]+)$/.exec(p);
@@ -285,7 +371,6 @@ async function api(req, res, url) {
   }
   if (hm && m === 'DELETE') {
     if (!isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
-    if (lockAlive() && LOCK.sid !== sess.sid) return send(res, 409, { error: 'lock', lock: lockInfo(sess) });
     const mid = decodeURIComponent(hm[1]);
     if (!HIST.some(x => x.mid === mid)) return send(res, 404, { error: 'non trovata' });
     HIST = HIST.filter(x => x.mid !== mid);

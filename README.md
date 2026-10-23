@@ -86,6 +86,7 @@ Le impostazioni si definiscono con variabili d'ambiente nel file `.env`:
 | `DOMAIN` | Dominio per HTTPS automatico |
 | `LOCK_TTL` | Secondi senza segnale dopo cui lo scout torna libero |
 | `HISTORY_SIZE` | Numero di partite conservate nello storico |
+| `MAX_LIVE` | Partite in corso contemporaneamente (default 5). Una sola per squadra: per giocarne due insieme servono due squadre diverse |
 | `DATA_UID`, `DATA_GID` | Utente e gruppo con cui gira il container (default `1000`). `data/` deve appartenere a loro |
 
 Le password possono essere scritte già cifrate (`node server.js hash '<password>'`), ma con `users.sh` è automatico.
@@ -122,7 +123,7 @@ Tutti i dati stanno nella cartella `data/` accanto al progetto. Docker la monta 
 
 | File | Contenuto |
 |---|---|
-| `data/data.json` | Partita in corso e squadre salvate |
+| `data/data.json` | Partite in corso (una per squadra) e squadre salvate. Un vecchio file con una sola partita viene convertito al primo avvio, e ne resta una copia in `data.json.v1` |
 | `data/history.json` | Partite concluse. Se ne tengono al massimo `HISTORY_SIZE` (default 6): quando ne archivi una nuova, la più vecchia viene cancellata |
 | `data/secret` | Chiave che firma le sessioni. Se la cancelli, tutti devono rifare il login |
 
