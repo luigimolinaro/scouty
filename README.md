@@ -19,6 +19,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 | `public/` | Interfaccia web |
 | `Dockerfile`, `docker-compose.yml` | Distribuzione con Docker |
 | `Caddyfile` | Configurazione HTTPS (profilo `https`) |
+| `users.sh` | Gestione degli utenti nel file `.env` |
 | `scout-pallavolo/.env.example` | Esempio di configurazione |
 
 ## Avvio rapido
@@ -59,6 +60,21 @@ Le impostazioni si definiscono con variabili d'ambiente nel file `.env`:
 Le password possono essere cifrate con `node server.js hash '<password>'`.
 
 Il file `.env` contiene credenziali: non va mai committato.
+
+## Gestione utenti
+
+Lo script `users.sh` modifica la variabile `USERS` del `.env` senza doverla scrivere a mano. Le password sono chieste in modo nascosto e salvate cifrate.
+
+```bash
+./users.sh list                 # elenca utenti e ruoli (senza password)
+./users.sh add <nome> <ruolo>   # ruolo: coach | scout
+./users.sh passwd <nome>        # cambia la password
+./users.sh role <nome> <ruolo>  # cambia il ruolo
+./users.sh remove <nome>        # elimina un utente
+./users.sh apply                # riavvia il servizio per applicare le modifiche
+```
+
+Prima di ogni modifica viene salvata una copia in `.env.bak`. Cambiare il ruolo o eliminare un utente invalida le sue sessioni attive. Serve `node` oppure Docker con l'immagine già costruita.
 
 ## Dati
 
