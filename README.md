@@ -10,7 +10,12 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 - Interfaccia web in un unico file (`public/index.html`)
 - Accesso con utente e password, con tre ruoli: `coach`, `scoutman` e `scout`
 - Un solo utente alla volta può modificare la partita, gli altri vedono in diretta in sola lettura
-- Stats con grafici (efficienza, punti ed errori, positività, palleggio, andamento del punteggio, errori per tipo, ricezione per giocatrice) ingrandibili con un tocco, storico delle ultime partite (eliminabili una a una) ed esportazione in Excel e PDF (un grafico grande per pagina)
+- Più partite in corso insieme (una per squadra), con elenco nella scheda Scout; "Termina scout" lascia la partita agli altri
+- Colore della squadra a scelta (giallo, turchese, blu, nero), salvato con la squadra
+- Stats con grafici (efficienza, punti ed errori, positività, palleggio, andamento del punteggio con i cambi segnati da un cerchio, errori per tipo, ricezione per giocatrice) ingrandibili con un tocco
+- Stats di una partita in corso (sola lettura, con scelta tra le partite live) o dello storico delle ultime partite (eliminabili una a una)
+- "Riprendi scout" per riaprire una partita archiviata, possibile solo se non ci sono partite in corso
+- Esportazione in Excel e PDF (due pagine A4 orizzontali: grafici piccoli, poi tabelle e tabellone)
 - Distribuzione con Docker, HTTPS opzionale tramite Caddy
 
 ## Screenshot
@@ -70,7 +75,7 @@ USERS='mister:password:coach' DATA_DIR=./data node server.js
 
 ## Logo e crediti
 
-Il login e le schermate Partita, Statistiche e Squadra mostrano i crediti (Scouty, autore, link al repository). Durante lo scout sono nascosti per lasciare spazio ai pulsanti.
+La schermata di login mostra i crediti (Scouty, autore, link al repository); nelle altre schermate sono nascosti per lasciare spazio.
 
 Il logo è il file `public/image/Scouty-Logo.jpg` (300×300 nel login, piccolo nei crediti). Per cambiarlo sostituisci quel file e ricostruisci l'immagine con `docker compose up -d --build`. Se il file non c'è, la pagina funziona senza logo.
 
@@ -95,7 +100,7 @@ Il file `.env` contiene credenziali ed è escluso da git: non va mai committato.
 
 ## Ruoli
 
-| Ruolo | Scout | Squadra | Statistiche, storico, export |
+| Ruolo | Scout | Squadra | Stats, storico, riprendi scout, export |
 |---|---|---|---|
 | `coach` | sì | sì | sì |
 | `scoutman` | sì | sì | sì (per ora uguale a `coach`) |
@@ -127,7 +132,7 @@ Tutti i dati stanno nella cartella `data/` accanto al progetto. Docker la monta 
 | `data/history.json` | Partite concluse. Se ne tengono al massimo `HISTORY_SIZE` (default 6): quando ne archivi una nuova, la più vecchia viene cancellata |
 | `data/secret` | Chiave che firma le sessioni. Se la cancelli, tutti devono rifare il login |
 
-I file vengono scritti dal server a ogni modifica, quindi `data/` non va modificata a mano mentre l'app gira. Per conservare le partite oltre il limite, esportale in Excel o PDF dalla scheda Statistiche.
+I file vengono scritti dal server a ogni modifica, quindi `data/` non va modificata a mano mentre l'app gira. Per conservare le partite oltre il limite, esportale in Excel o PDF dalla scheda Stats.
 
 ### Permessi
 
