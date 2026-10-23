@@ -4,6 +4,7 @@ services:
     image: scout-pallavolo:latest
     restart: unless-stopped
     env_file: .env
+    user: "${DATA_UID:-1000}:${DATA_GID:-1000}"
     volumes:
       - ./data:/data
     ports:
