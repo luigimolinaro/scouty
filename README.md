@@ -12,6 +12,7 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 - Un solo utente alla volta può modificare la partita, gli altri vedono in diretta in sola lettura
 - Più partite in corso insieme (una per squadra), con elenco nella scheda Scout; "Termina scout" lascia la partita agli altri
 - Colore della squadra a scelta (giallo, turchese, blu, nero), salvato con la squadra
+- Cambi con regole FIPAV: massimo 8 per set, ogni giocatrice rientra solo al posto della sua sostituta e una coppia può fare al più un cambio e un rientro per set
 - Stats con grafici (efficienza, punti ed errori, positività, palleggio, andamento del punteggio con i cambi segnati da un cerchio, errori per tipo, ricezione per giocatrice) ingrandibili con un tocco
 - Stats di una partita in corso (sola lettura, con scelta tra le partite live) o dello storico delle ultime partite (eliminabili una a una)
 - "Riprendi scout" per riaprire una partita archiviata, possibile solo se non ci sono partite in corso
