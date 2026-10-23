@@ -1,0 +1,31 @@
+services:
+  scout:
+    build: .
+    image: scout-pallavolo:latest
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - scout_data:/data
+    ports:
+      - "8080:8080"
+
+  # HTTPS automatico con Let's Encrypt (avvio: docker compose --profile https up -d)
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - scout
+
+volumes:
+  scout_data:
+  caddy_data:
+  caddy_config:
