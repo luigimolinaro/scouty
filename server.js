@@ -4,7 +4,7 @@
  * - login con ruoli: coach (allenatore) e scout
  * - stato partita e squadre condivisi
  * - blocco "chi sta facendo scout" con heartbeat
- * - storico delle ultime 3 partite
+ * - storico delle ultime 6 partite
  */
 const http = require('http');
 const fs = require('fs');
@@ -27,7 +27,7 @@ const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
 const PUB = path.join(__dirname, 'public');
 const LOCK_TTL = Math.max(20, parseInt(process.env.LOCK_TTL || '90', 10)) * 1000;
 const SECURE = process.env.COOKIE_SECURE === '1';
-const MAX_HIST = parseInt(process.env.HISTORY_SIZE || '3', 10);
+const MAX_HIST = parseInt(process.env.HISTORY_SIZE || '6', 10);
 const SESSION_DAYS = parseInt(process.env.SESSION_DAYS || '30', 10);
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 

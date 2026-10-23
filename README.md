@@ -123,7 +123,7 @@ Tutti i dati stanno nella cartella `data/` accanto al progetto. Docker la monta 
 | File | Contenuto |
 |---|---|
 | `data/data.json` | Partita in corso e squadre salvate |
-| `data/history.json` | Partite concluse. Se ne tengono al massimo `HISTORY_SIZE` (default 3): quando ne archivi una nuova, la più vecchia viene cancellata |
+| `data/history.json` | Partite concluse. Se ne tengono al massimo `HISTORY_SIZE` (default 6): quando ne archivi una nuova, la più vecchia viene cancellata |
 | `data/secret` | Chiave che firma le sessioni. Se la cancelli, tutti devono rifare il login |
 
 I file vengono scritti dal server a ogni modifica, quindi `data/` non va modificata a mano mentre l'app gira. Per conservare le partite oltre il limite, esportale in Excel o PDF dalla scheda Statistiche.
