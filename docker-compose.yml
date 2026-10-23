@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     env_file: .env
     volumes:
-      - scout_data:/data
+      - ./data:/data
     ports:
       - "8080:8080"
 
@@ -26,6 +26,5 @@ services:
       - scout
 
 volumes:
-  scout_data:
   caddy_data:
   caddy_config:

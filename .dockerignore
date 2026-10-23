@@ -1,0 +1,5 @@
+data
+.env
+.env.*
+.git
+*.log

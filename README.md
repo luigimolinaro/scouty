@@ -111,17 +111,37 @@ Se `.env` non esiste, `users.sh add` lo crea a partire da `scout-pallavolo/.env.
 
 ## Dati e backup
 
-I dati stanno nel volume Docker `scout_data` (cartella `DATA_DIR`):
+I dati stanno nella cartella `data/` accanto al progetto, che Docker monta nel container come `/data`. La cartella è esclusa da git:
 
-- `data.json`: partita in corso e squadre salvate
-- `history.json`: le ultime partite concluse
-- `secret`: chiave delle sessioni
+- `data/data.json`: partita in corso e squadre salvate
+- `data/history.json`: le ultime partite concluse (`HISTORY_SIZE`, default 3: le più vecchie vengono cancellate)
+- `data/secret`: chiave delle sessioni
 
-Backup:
+Il container gira come utente `node` (UID 1000), quindi la cartella gli deve appartenere. Al primo avvio:
 
 ```bash
-docker compose cp scout:/data ./backup
+mkdir -p data && chown 1000:1000 data
 ```
+
+Backup: basta copiare la cartella, anche a servizio acceso.
+
+```bash
+tar czf scouty-backup-$(date +%F).tgz data
+```
+
+### Migrare dal vecchio volume Docker
+
+Se avevi già dati nel volume `scout_data` (versioni precedenti), copiali prima di avviare:
+
+```bash
+docker compose down
+mkdir -p data
+docker run --rm --user root --entrypoint cp -v scouty_scout_data:/from -v "$PWD/data":/to scout-pallavolo:latest -a /from/. /to/
+chown -R 1000:1000 data
+docker compose up -d --build
+```
+
+Il nome del volume dipende dalla cartella del progetto: controllalo con `docker volume ls | grep scout`.
 
 ## Aggiornamento
 
@@ -130,4 +150,4 @@ git pull
 docker compose up -d --build
 ```
 
-I dati restano nel volume. La modifica di `.env` richiede solo `docker compose up -d`.
+I dati restano in `data/`. La modifica di `.env` richiede solo `docker compose up -d`.

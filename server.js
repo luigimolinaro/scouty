@@ -32,6 +32,10 @@ const SESSION_DAYS = parseInt(process.env.SESSION_DAYS || '30', 10);
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 
 fs.mkdirSync(DATA, { recursive: true });
+try { fs.accessSync(DATA, fs.constants.W_OK); } catch (e) {
+  console.error('Cartella dati non scrivibile: ' + DATA + ' (in Docker: mkdir -p data && chown 1000:1000 data)');
+  process.exit(1);
+}
 
 let SECRET = process.env.SESSION_SECRET;
 if (!SECRET) {
