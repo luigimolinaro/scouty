@@ -17,8 +17,8 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 - Cambi con regole FIPAV: massimo 8 per set, ogni giocatrice rientra solo al posto della sua sostituta e una coppia può fare al più un cambio e un rientro per set
 - Stats con grafici (efficienza, punti ed errori, positività, palleggio, andamento del punteggio con i cambi segnati da un cerchio, errori per tipo, ricezione per giocatrice) ingrandibili con un tocco
 - Pulsante "Edita efficienze" nella modifica squadra (solo allenatore): obiettivi di efficienza (battuta, attacco, ricezione) e soglie di side-out e break point, impostati per ogni squadra, usati in Stats, tabellone e PDF
-- Global stats (solo allenatore, nel menu Squadra sotto "Gestione squadra"): somma dello storico di una squadra, con una riga per partita (eliminabile, utile per le partite di prova) e il totale per ogni giocatrice
-- Stats di una partita in corso (sola lettura, con scelta tra le partite live) o dello storico delle ultime partite (eliminabili una a una)
+- Global stats (solo allenatore, nel menu Squadra sotto "Gestione squadra"): somma dello storico di una squadra, con una riga per partita (eliminabile, utile per le partite di prova) e il totale per ogni giocatrice; "Elimina storico" (doppio tocco) toglie tutte le partite di una squadra che non ti interessa, senza toccare la rosa salvata
+- Stats di una partita in corso (sola lettura, con scelta tra le partite live) o dello storico: le ultime 10 partite sono a portata di tocco, tutte le altre nell'**Archivio** (solo allenatore), con filtro per squadra, scelta dell'anno, calendario mensile che segna i giorni in cui si è giocato e elenco del mese o del giorno. Le partite non vengono più cancellate da sole: si eliminano a mano
 - "Riprendi scout" per riaprire una partita archiviata, possibile solo se non ci sono partite in corso
 - Esportazione in Excel e PDF (due pagine A4 orizzontali: grafici piccoli, poi tabelle e tabellone)
 - Distribuzione con Docker, HTTPS opzionale tramite Caddy
@@ -88,7 +88,6 @@ Le impostazioni si definiscono con variabili d'ambiente nel file `.env`:
 | `TRUST_PROXY` | `1` se l'app è dietro un proxy |
 | `DOMAIN` | Dominio per HTTPS automatico |
 | `LOCK_TTL` | Secondi senza segnale dopo cui lo scout torna libero |
-| `HISTORY_SIZE` | Numero di partite conservate nello storico |
 | `MAX_LIVE` | Partite in corso contemporaneamente (default 5). Una sola per squadra: per giocarne due insieme servono due squadre diverse |
 | `DATA_UID`, `DATA_GID` | Utente e gruppo con cui gira il container (default `1000`). `data/` deve appartenere a loro |
 
@@ -127,7 +126,7 @@ Tutti i dati stanno nella cartella `data/` accanto al progetto. Docker la monta 
 | File | Contenuto |
 |---|---|
 | `data/data.json` | Partite in corso (una per squadra) e squadre salvate. Un vecchio file con una sola partita viene convertito al primo avvio, e ne resta una copia in `data.json.v1` |
-| `data/history.json` | Partite concluse. Se ne tengono al massimo `HISTORY_SIZE` (default 6): quando ne archivi una nuova, la più vecchia viene cancellata |
+| `data/storico/AAAA/MM/<id>.json` | Una partita conclusa per file, in cartelle per anno e mese della data della partita. Nessun limite di numero. Se esiste un vecchio `history.json` (le ultime `HISTORY_SIZE` partite) viene importato al primo avvio e rinominato `history.json.v1`. Il backup è la cartella `data/` |
 | `data/secret` | Chiave che firma le sessioni. Se la cancelli, tutti devono rifare il login |
 
 I file vengono scritti dal server a ogni modifica, quindi `data/` non va modificata a mano mentre l'app gira. Per conservare le partite oltre il limite, esportale in Excel o PDF dalla scheda Stats.

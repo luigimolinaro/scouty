@@ -27,7 +27,6 @@ const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
 const PUB = path.join(__dirname, 'public');
 const LOCK_TTL = Math.max(20, parseInt(process.env.LOCK_TTL || '90', 10)) * 1000;
 const SECURE = process.env.COOKIE_SECURE === '1';
-const MAX_HIST = parseInt(process.env.HISTORY_SIZE || '6', 10);
 const MAX_LIVE = Math.max(1, parseInt(process.env.MAX_LIVE || '5', 10));
 const SESSION_DAYS = parseInt(process.env.SESSION_DAYS || '30', 10);
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
@@ -147,8 +146,56 @@ else if (!DB.matches) { // formato precedente (una sola partita): conversione, c
 const MATCHES = new Map(Object.entries(DB.matches));
 for (const [k, m] of MATCHES) if (m && m.state && m.state.archived && Date.now() - (m.at || 0) > 7 * 864e5) MATCHES.delete(k);
 function saveDb() { writeJson(F_DATA, { sqv: DB.sqv, squads: DB.squads, matches: Object.fromEntries(MATCHES), at: DB.at, by: DB.by }); }
-let HIST = readJson(F_HIST, []);
-if (!Array.isArray(HIST)) HIST = [];
+/* ---------- storico: un file per partita in storico/AAAA/MM/<mid>.json ---------- */
+const D_HIST = path.join(DATA, 'storico');
+const HIST_RECENT = 10;
+const IDX = new Map(); // mid -> { mid, team, opp, date, won, sets, at, rel }
+let HV = Date.now(); // firma: cambia a ogni modifica dello storico
+const ymd = t => new Date(t).toISOString().slice(0, 10);
+const okDate = d => typeof d === 'string' && /^(20\d\d)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d);
+const histRel = s => path.join(s.date.slice(0, 4), s.date.slice(5, 7), s.mid + '.json');
+const histInfo = (h, rel) => ({ mid: h.mid, team: String(h.team || '').slice(0, 60), opp: String(h.opp || '').slice(0, 60), date: h.date, won: h.won, sets: (h.sc || []).slice(0, h.maxSet || 0), at: h.at || 0, rel });
+function putHist(s) {
+  if (!okDate(s.date)) s.date = ymd(s.at || Date.now());
+  const rel = histRel(s), old = IDX.get(s.mid);
+  fs.mkdirSync(path.dirname(path.join(D_HIST, rel)), { recursive: true });
+  writeJson(path.join(D_HIST, rel), s);
+  if (old && old.rel !== rel) { try { fs.unlinkSync(path.join(D_HIST, old.rel)); } catch (e) { /* gia' assente */ } }
+  IDX.set(s.mid, histInfo(s, rel)); HV = Date.now();
+}
+function delHist(mid) {
+  const x = IDX.get(mid); if (!x) return false;
+  const f = path.join(D_HIST, x.rel);
+  try { fs.unlinkSync(f); } catch (e) { /* gia' assente */ }
+  for (const d of [path.dirname(f), path.dirname(path.dirname(f))]) { try { fs.rmdirSync(d); } catch (e) { break; } } // toglie le cartelle rimaste vuote
+  IDX.delete(mid); HV = Date.now(); notify();
+  return true;
+}
+const getHist = mid => { const x = IDX.get(mid); return x ? readJson(path.join(D_HIST, x.rel), null) : null; };
+const histSort = (a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0));
+const histOut = x => ({ mid: x.mid, team: x.team, opp: x.opp, date: x.date, won: x.won, sets: x.sets });
+(function loadHist() {
+  let ys = []; try { ys = fs.readdirSync(D_HIST); } catch (e) { /* ancora nessuno storico */ }
+  for (const y of ys) {
+    if (!/^\d{4}$/.test(y)) continue;
+    let ms = []; try { ms = fs.readdirSync(path.join(D_HIST, y)); } catch (e) { continue; }
+    for (const mo of ms) {
+      if (!/^\d{2}$/.test(mo)) continue;
+      let fl = []; try { fl = fs.readdirSync(path.join(D_HIST, y, mo)); } catch (e) { continue; }
+      for (const f of fl) {
+        const m = /^([A-Za-z0-9_-]{1,40})\.json$/.exec(f); if (!m) continue;
+        const h = readJson(path.join(D_HIST, y, mo, f), null);
+        if (h && h.mid === m[1] && Array.isArray(h.pl) && Array.isArray(h.ev) && okDate(h.date)) IDX.set(h.mid, histInfo(h, path.join(y, mo, f)));
+      }
+    }
+  }
+  const old = readJson(F_HIST, null); // formato precedente: history.json (ultime N partite), importato una volta
+  if (Array.isArray(old)) {
+    for (const h of old) if (h && isMid(h.mid) && Array.isArray(h.pl) && Array.isArray(h.ev) && Array.isArray(h.sc) && !IDX.has(h.mid)) putHist(h);
+    try { fs.renameSync(F_HIST, F_HIST + '.v1'); } catch (e) { /* resta dov'e' */ }
+    console.log(new Date().toISOString(), 'storico importato da history.json:', old.length, 'partite');
+  }
+})();
 
 /* ---------- blocco scout (uno per partita) ---------- */
 const LOCKS = new Map(); // mid -> {sid,u,r,since,beat}
@@ -216,7 +263,7 @@ function rateLimited(ip) {
   return t.n > 10;
 }
 function histSummary() {
-  return HIST.map(h => ({ mid: h.mid, team: h.team, opp: h.opp, date: h.date, won: h.won, sets: (h.sc || []).slice(0, h.maxSet || 0) }));
+  return [...IDX.values()].sort(histSort).slice(0, HIST_RECENT).map(histOut);
 }
 function validState(s) { return s === null || (typeof s === 'object' && !Array.isArray(s) && Array.isArray(s.pl) && s.pl.length <= 60 && Array.isArray(s.ev)); }
 function validSquads(s) { return s === null || (typeof s === 'object' && !Array.isArray(s) && Object.keys(s).length <= 50); }
@@ -282,7 +329,7 @@ async function api(req, res, url) {
     if (sv !== DB.sqv) o.squads = DB.squads;
     if (mid && !mt) o.gone = true;
     if (mt && v !== mt.ver) o.state = mt.state;
-    if (isFull(sess2.role)) o.hist = histSummary();
+    if (isFull(sess2.role)) { o.hist = histSummary(); o.hv = HV; }
     return o;
   };
   const mOf = b => { const x = (b && b.m) || url.searchParams.get('m') || ''; return isMid(x) ? x : ''; };
@@ -365,7 +412,7 @@ async function api(req, res, url) {
     const mid = mOf(b), mt = MATCHES.get(mid);
     if (b.a === 'reopen' && mid) { // riapre una partita dello storico: solo allenatore e solo se non ci sono partite in corso
       if (!isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
-      const h = HIST.find(x => x.mid === mid);
+      const h = getHist(mid);
       if (!h) return send(res, 404, { error: 'non trovata' });
       if (liveList().length) return send(res, 409, { error: 'live', live: liveList() });
       if (heldByOther(mid, sess)) return send(res, 409, { error: 'lock', lock: lockInfo(mid, sess) });
@@ -377,9 +424,9 @@ async function api(req, res, url) {
         MATCHES.set(mid, { ver: 1, state: st, at: Date.now(), by: sess.user });
       }
       grant(mid, sess);
-      HIST = HIST.filter(x => x.mid !== mid); writeJson(F_HIST, HIST); saveDb();
+      delHist(mid); saveDb();
       console.log(new Date().toISOString(), 'reopen match', mid, sess.user);
-      return send(res, 200, { ok: true, hist: histSummary(), live: liveList() });
+      return send(res, 200, { ok: true, hist: histSummary(), hv: HV, live: liveList() });
     }
     if (b.a !== 'drop' || !mid) return send(res, 400, { error: 'azione' });
     if (!mt) return send(res, 200, { ok: true, live: liveList() });
@@ -397,28 +444,40 @@ async function api(req, res, url) {
     if (!s || typeof s !== 'object' || !isMid(s.mid) || !Array.isArray(s.pl) || !Array.isArray(s.ev) || !Array.isArray(s.sc)) return send(res, 400, { error: 'snapshot' });
     if (heldByOther(s.mid, sess)) return send(res, 409, { error: 'lock', lock: lockInfo(s.mid, sess) });
     s.at = Date.now();
-    HIST = [s].concat(HIST.filter(h => h.mid !== s.mid)).slice(0, MAX_HIST);
-    writeJson(F_HIST, HIST);
+    putHist(s);
     const mt = MATCHES.get(s.mid);
     if (mt && mt.state) { mt.state.archived = true; mt.at = Date.now(); saveDb(); }
-    return send(res, 200, { ok: true, hist: isFull(sess.role) ? histSummary() : [], live: liveList() });
+    return send(res, 200, { ok: true, hist: isFull(sess.role) ? histSummary() : [], hv: HV, live: liveList() });
   }
 
   const hm = /^\/api\/history\/([^/]+)$/.exec(p);
   if (hm && m === 'GET') {
     if (!isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
-    const h = HIST.find(x => x.mid === decodeURIComponent(hm[1]));
+    const h = getHist(decodeURIComponent(hm[1]));
     if (!h) return send(res, 404, { error: 'non trovata' });
     return send(res, 200, { snap: h });
   }
   if (hm && m === 'DELETE') {
     if (!isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
     const mid = decodeURIComponent(hm[1]);
-    if (!HIST.some(x => x.mid === mid)) return send(res, 404, { error: 'non trovata' });
-    HIST = HIST.filter(x => x.mid !== mid);
-    writeJson(F_HIST, HIST);
+    if (!delHist(mid)) return send(res, 404, { error: 'non trovata' });
     console.log(new Date().toISOString(), 'delete history', mid, sess.user);
-    return send(res, 200, { ok: true, hist: histSummary() });
+    return send(res, 200, { ok: true, hist: histSummary(), hv: HV });
+  }
+  const ht = /^\/api\/history-team\/([^/]+)$/.exec(p);
+  if (ht && m === 'DELETE') {
+    if (!isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
+    const k = decodeURIComponent(ht[1]).trim().toLowerCase();
+    if (!k) return send(res, 400, { error: 'dati non validi' });
+    const L = [...IDX.values()].filter(x => String(x.team || '').trim().toLowerCase() === k);
+    if (!L.length) return send(res, 404, { error: 'non trovata' });
+    L.forEach(x => delHist(x.mid));
+    console.log(new Date().toISOString(), 'delete history team', L.length, 'matches', sess.user);
+    return send(res, 200, { ok: true, hist: histSummary(), hv: HV });
+  }
+  if (p === '/api/history' && m === 'GET') { // indice completo dell'archivio (senza i dati delle partite)
+    if (!isFull(sess.role)) return send(res, 403, { error: 'solo allenatore' });
+    return send(res, 200, { hv: HV, idx: [...IDX.values()].sort(histSort).map(histOut) });
   }
   return send(res, 404, { error: 'not found' });
 }
