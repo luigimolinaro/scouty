@@ -4,7 +4,6 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 
 <img width="313" height="313" alt="Scouty Owl Volleyball Logo" src="https://github.com/user-attachments/assets/23423f1f-89c4-4568-8eb0-7ab69cd0a1d7" />
 
-
 ## Caratteristiche
 
 - Server Node.js senza dipendenze esterne
@@ -13,6 +12,11 @@ Applicazione web per lo scout di partite di pallavolo, con login, ruoli e scout 
 - Un solo utente alla volta può modificare la partita, gli altri vedono in diretta in sola lettura
 - Statistiche, storico delle ultime partite ed esportazione in Excel e PDF
 - Distribuzione con Docker, HTTPS opzionale tramite Caddy
+
+## Screenshot
+
+<img width="498.5" height="554" alt="image" src="https://github.com/user-attachments/assets/32d581a2-b33a-4914-b40a-73cda6167745" />
+
 
 ## Struttura
 
